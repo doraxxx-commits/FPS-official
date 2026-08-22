@@ -33,7 +33,6 @@ jobs:
 
       - name: Build Web
         run: |
-          # Znalezienie katalogu zawierającego package.json
           TARGET_DIR=$(find . -name "package.json" -not -path "*/node_modules/*" -exec dirname {} \;)
           echo "Found project directory: $TARGET_DIR"
           cd "$TARGET_DIR"
@@ -56,4 +55,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
-          path: /**/outputs/apk/debug/app-debug.apk
+          path: ./**/build/outputs/apk/debug/app-debug.apk
