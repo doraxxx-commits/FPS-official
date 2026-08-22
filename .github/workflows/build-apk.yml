@@ -23,15 +23,21 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Extract ZIP
+      - name: Extract Any ZIP File
         run: |
-          if [ -f "FPS naprawione.zip" ]; then unzip -o "FPS naprawione.zip"; fi
-          if [ -f "FPS-fixed.zip" ]; then unzip -o "FPS-fixed.zip"; fi
-          if [ -f "FPS.zip" ]; then unzip -o "FPS.zip"; fi
+          shopt -s nullglob
+          for zipfile in *.zip; do
+            echo "Unzipping $zipfile..."
+            unzip -o "$zipfile"
+          done
 
       - name: Build Web
         run: |
-          cd FPS
+          # Znalezienie katalogu zawierającego package.json
+          TARGET_DIR=$(find . -name "package.json" -not -path "*/node_modules/*" -exec dirname {} \;)
+          echo "Found project directory: $TARGET_DIR"
+          cd "$TARGET_DIR"
+          
           npm install
           if [ ! -d "android" ]; then npx cap add android; fi
           npm run cap:build
@@ -41,7 +47,8 @@ jobs:
 
       - name: Build APK
         run: |
-          cd FPS/android
+          TARGET_DIR=$(find . -name "package.json" -not -path "*/node_modules/*" -exec dirname {} \;)
+          cd "$TARGET_DIR/android"
           chmod +x gradlew
           ./gradlew assembleDebug
 
@@ -49,4 +56,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
-          path: FPS/android/app/build/outputs/apk/debug/app-debug.apk
+          path: /**/outputs/apk/debug/app-debug.apk
