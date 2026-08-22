@@ -1,43 +1,71 @@
-name: Build APK
+# 1. Stworzenie ukrytego folderu i przeniesienie pliku yml na właściwe miejsce
+mkdir -p .github/workflows
+cat << 'EOF' > .github/workflows/build-apk.yml
+name: Build Android APK
 
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch: {}
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Rozpakuj projekt z przesłanego zipa
-        run: |
-          ZIPFILE=$(ls *.zip | head -n1)
-          echo "Rozpakowuję: $ZIPFILE"
-          unzip -o "$ZIPFILE" -d extracted
-          SUBDIR=$(ls extracted)
-          shopt -s dotglob
-          mv extracted/"$SUBDIR"/* .
-          shopt -u dotglob
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
 
-      - name: Ustaw JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
 
-      - name: Ustaw Android SDK
-        uses: android-actions/setup-android@v3
+    - name: Unzip project archive
+      run: |
+        if [ -f "FPS naprawione.zip" ]; then
+          unzip -o "FPS naprawione.zip"
+        elif [ -f "FPS-fixed.zip" ]; then
+          unzip -o "FPS-fixed.zip"
+        elif [ -f "FPS.zip" ]; then
+          unzip -o "FPS.zip"
+        fi
 
-      - name: Zbuduj APK (debug)
-        working-directory: android
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+    - name: Install dependencies & Sync Capacitor
+      run: |
+        cd FPS
+        npm install
+        if [ ! -d "android" ]; then
+          npx cap add android
+        fi
+        npm run cap:build
 
-      - name: Wgraj APK jako artefakt
-        uses: actions/upload-artifact@v4
-        with:
-          name: FPS-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Build APK with Gradle
+      run: |
+        cd FPS/android
+        chmod +x gradlew
+        ./gradlew assembleDebug
+
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug
+        path: FPS/android/app/build/outputs/apk/debug/app-debug.apk
+EOF
+
+# 2. Usunięcie niepotrzebnego pliku ze złej ścieżki
+rm -f build-apk.yml
+
+# 3. Wysyłka zmian do GitHub
+git add .
+git commit -m "Aktywacja GitHub Actions z obsługa archiwum ZIP"
+git push origin main
