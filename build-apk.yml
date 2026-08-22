@@ -1,0 +1,43 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rozpakuj projekt z przesłanego zipa
+        run: |
+          ZIPFILE=$(ls *.zip | head -n1)
+          echo "Rozpakowuję: $ZIPFILE"
+          unzip -o "$ZIPFILE" -d extracted
+          SUBDIR=$(ls extracted)
+          shopt -s dotglob
+          mv extracted/"$SUBDIR"/* .
+          shopt -u dotglob
+
+      - name: Ustaw JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Ustaw Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Zbuduj APK (debug)
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Wgraj APK jako artefakt
+        uses: actions/upload-artifact@v4
+        with:
+          name: FPS-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
